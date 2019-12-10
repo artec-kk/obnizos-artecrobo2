@@ -103,6 +103,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_1 = __webpack_require__("./src/stubit/index.ts");
 const bzr_1 = __webpack_require__("./src/atcrobo/parts/bzr.ts");
+const acc_1 = __webpack_require__("./src/atcrobo/parts/acc.ts");
 const irPhtoRefrector_1 = __webpack_require__("./src/atcrobo/parts/irPhtoRefrector.ts");
 const led_1 = __webpack_require__("./src/atcrobo/parts/led.ts");
 const motor_1 = __webpack_require__("./src/atcrobo/parts/motor.ts");
@@ -194,11 +195,179 @@ ArtecRobo.Led = led_1.ArtecRoboLed;
 ArtecRobo.TouchSensor = touch_1.ArtecRoboTouchSensor;
 ArtecRobo.Motor = motor_1.ArtecRoboMotor;
 ArtecRobo.Buzzer = bzr_1.ArtecRoboBuzzer;
+ArtecRobo.Accelerometer = acc_1.ArtecRoboAccelerometer;
 ArtecRobo.ServoMotor = servomotor_1.ArtecRoboServoMotor;
 ArtecRobo.IrPhotoRefrector = irPhtoRefrector_1.ArtecRoboIrPhotoRefrector;
 ArtecRobo.Temperature = temperature_1.ArtecRoboTemperature;
 ArtecRobo.SoundSensor = sound_1.ArtecRoboSoundSensor;
 exports.ArtecRobo = ArtecRobo;
+
+
+/***/ }),
+
+/***/ "./src/atcrobo/parts/acc.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const i2cParts_1 = __webpack_require__("./src/atcrobo/parts/i2cParts.ts");
+class ArtecRoboAccelerometer extends i2cParts_1.ArtecRoboI2CParts {
+    constructor(artecRobo) {
+        super(artecRobo);
+        this.addr = 0x1d;
+        this.CTRL_REG1 = 0x2A;
+        this.CTRL_REG1_VALUE_ACTIVE = 0x01;
+        this.CTRL_REG1_VALUE_F_READ = 0x02;
+        this.CTRL_REG2 = 0x2B;
+        this.CTRL_REG2_RESET = 0x40;
+        this.PL_STATUS = 0x10;
+        this.PL_CFG = 0x11;
+        this.PL_EN = 0x40;
+        this.XYZ_DATA_CFG = 0x0E;
+        this.MODE_2G = 0x00; //# Set Sensitivity to 2g
+        this.MODE_4G = 0x01; //# Set Sensitivity to 4g
+        this.MODE_8G = 0x02; // # Set Sensitivity to 8g
+        this.FF_MT_CFG = 0x15;
+        this.FF_MT_CFG_ELE = 0x80;
+        this.FF_MT_CFG_OAE = 0x40;
+        this.FF_MT_SRC = 0x16;
+        this.FF_MT_SRC_EA = 0x80;
+        this.PULSE_CFG = 0x21;
+        this.PULSE_CFG_ELE = 0x80;
+        this.PULSE_SRC = 0x22;
+        this.PULSE_SRC_EA = 0x80;
+        // Sample rate
+        this.ODR_800 = 0x00;
+        this.ODR_400 = 0x08;
+        this.ODR_200 = 0x10;
+        this.ODR_100 = 0x18;
+        this.ODR_50 = 0x20;
+        this.ODR_12_5 = 0x28;
+        this.ODR_6_25 = 0x30;
+        this.ODR_1_56 = 0x38;
+        this.highres = false;
+        this.stepFactor = 0.0156;
+        this.values = [0, 0, 0];
+        this.artecRobo = artecRobo;
+    }
+    standby() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let arr = yield this._i2cPin.i2c.readFromMem(this.addr, this.CTRL_REG1, 1);
+            this._i2cPin.i2c.writeToMem(this.addr, this.CTRL_REG1, [arr[0] & ~this.CTRL_REG1_VALUE_ACTIVE]);
+        });
+    }
+    activate() {
+        return __awaiter(this, void 0, void 0, function* () {
+            let arr = yield this._i2cPin.i2c.readFromMem(this.addr, this.CTRL_REG1, 1);
+            let fRead = this.CTRL_REG1_VALUE_F_READ;
+            if (this.highres) {
+                fRead = 0;
+            }
+            this._i2cPin.i2c.writeToMem(this.addr, this.CTRL_REG1, [arr[0] | this.CTRL_REG1_VALUE_ACTIVE | fRead | this.ODR_100]);
+        });
+    }
+    _begin(highres = false, scale = 2) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.highres = highres;
+            if (this.highres) {
+                this.stepFactor = 0.0039;
+            }
+            else {
+                this.stepFactor = 0.0156;
+            }
+            if (scale == 4) {
+                this.stepFactor *= 2;
+            }
+            else if (scale == 8) {
+                this.stepFactor *= 4;
+            }
+            const _ = this._i2cPin.i2c.write(this.addr, [0x0D]);
+            // self.wai = self._read_register(0x0D) // used in not used 
+            this._i2cPin.i2c.writeToMem(this.addr, this.CTRL_REG2, [this.CTRL_REG2_RESET]);
+            yield this.artecRobo.studuinoBit.wait(10);
+            yield this.standby();
+            // # Set Portrait/Landscape mode
+            this._i2cPin.i2c.writeToMem(this.addr, this.PL_CFG, [0x80 | this.PL_EN]);
+            let mode = [this.MODE_2G];
+            if (scale == 4) {
+                mode[0] = this.MODE_4G;
+            }
+            else if (scale == 8) {
+                mode[0] = this.MODE_8G;
+            }
+            this._i2cPin.i2c.writeToMem(this.addr, this.XYZ_DATA_CFG, mode);
+            yield this.activate();
+        });
+    }
+    configurationWait(highres = false, scale = 2) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this._begin(highres, scale);
+        });
+    }
+    getXWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.update();
+            return this.values[0];
+        });
+    }
+    getYWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.update();
+            return this.values[1];
+        });
+    }
+    getZWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.update();
+            return this.values[2];
+        });
+    }
+    getValuesWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield this.update();
+            return this.values;
+        });
+    }
+    update() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const arr = yield this._i2cPin.i2c.readFromMem(this.addr, 0x00, this.highres ? 7 : 4);
+            // 0 byte = status
+            if (this.highres) {
+                const x = this.si16(arr[1] << 8 + arr[2]);
+                const y = this.si16(arr[3] << 8 + arr[4]);
+                const z = this.si16(arr[5] << 8 + arr[6]);
+                this.values = [
+                    x / 64 * this.stepFactor,
+                    y / 64 * this.stepFactor,
+                    z / 64 * this.stepFactor,
+                ];
+            }
+            else {
+                const x = this.si16(arr[1] << 8);
+                const y = this.si16(arr[2] << 8);
+                const z = this.si16(arr[3] << 8);
+                this.values = [
+                    x / 256 * this.stepFactor,
+                    y / 256 * this.stepFactor,
+                    z / 256 * this.stepFactor,
+                ];
+            }
+        });
+    }
+    si16(value) {
+        return -(value & 0x8000) | (value & 0x7fff);
+    }
+}
+exports.ArtecRoboAccelerometer = ArtecRoboAccelerometer;
 
 
 /***/ }),
@@ -218,6 +387,22 @@ class ArtecRoboBuzzer extends bzr_1.StuduinoBitBuzzer {
     }
 }
 exports.ArtecRoboBuzzer = ArtecRoboBuzzer;
+
+
+/***/ }),
+
+/***/ "./src/atcrobo/parts/i2cParts.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+class ArtecRoboI2CParts {
+    constructor(artecRobo) {
+        this._i2cPin = artecRobo.i2c;
+    }
+}
+exports.ArtecRoboI2CParts = ArtecRoboI2CParts;
 
 
 /***/ }),
@@ -568,7 +753,7 @@ exports.ArtecRoboTouchSensor = ArtecRoboTouchSensor;
 Object.defineProperty(exports, "__esModule", { value: true });
 class I2CPin {
     constructor(i2c) {
-        this._i2c = i2c;
+        this.i2c = i2c;
     }
 }
 exports.I2CPin = I2CPin;
@@ -663,14 +848,18 @@ class StuduinoBitI2C {
         studuinoBit.obniz.wait(5);
     }
     read(addr, n) {
-        return this.obnizI2c.readWait(addr, n);
+        return __awaiter(this, void 0, void 0, function* () {
+            return yield this.obnizI2c.readWait(addr, n);
+        });
     }
     write(addr, buf, repeat = false) {
         this.obnizI2c.write(addr, buf);
     }
     readFromMem(addr, memAddr, length) {
-        this.obnizI2c.write(addr, [memAddr]);
-        return this.obnizI2c.readWait(addr, length);
+        return __awaiter(this, void 0, void 0, function* () {
+            this.obnizI2c.write(addr, [memAddr]);
+            return yield this.obnizI2c.readWait(addr, length);
+        });
     }
     writeToMem(addr, memAddr, data) {
         this.obnizI2c.write(addr, [memAddr, ...data]);
@@ -725,12 +914,21 @@ class ICMRegisterRW {
         return __awaiter(this, void 0, void 0, function* () {
             if (value === null) {
                 const data = yield this.i2c.readFromMem(this.address, register, 2);
+                // 2の補数 以下はコンパスの場合
+                // 0111 1111 1111 0000 4912 uT
+                // 1111 1111 1111 1111 -1 uT
+                // 1000 0000 0001 0000 -4912 uT
+                let val;
                 if (endian === "b") {
-                    return data[0] << 8 | data[1];
+                    val = data[0] << 8 | data[1];
                 }
                 else {
-                    return data[1] << 8 | data[0];
+                    val = data[1] << 8 | data[0];
                 }
+                if ((val & (1 << 15))) {
+                    val = val - 0x10000;
+                }
+                return val;
             }
             if (endian === "b") {
                 buf[0] = ((value >> 8) & 0xFF);
@@ -781,6 +979,65 @@ exports.ICMRegisterRW = ICMRegisterRW;
 
 /***/ }),
 
+/***/ "./src/stubit/common.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+function _rgb_24bit(color) {
+    const r = Math.max(Math.min(color[0], 255), 0);
+    const g = Math.max(Math.min(color[1], 255), 0);
+    const b = Math.max(Math.min(color[2], 255), 0);
+    return (r << 16) + (g << 8) + (b);
+}
+exports._rgb_24bit = _rgb_24bit;
+function _24bit_rgb(val24) {
+    const r = (val24 >> 16) & 0x000000ff;
+    const g = (val24 >> 8) & 0x000000ff;
+    const b = val24 & 0x000000ff;
+    return [r, g, b];
+}
+exports._24bit_rgb = _24bit_rgb;
+function _componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+function _rgbToHex(r, g, b) {
+    return "#" + _componentToHex(r) + _componentToHex(g) + _componentToHex(b);
+}
+exports._rgbToHex = _rgbToHex;
+function ColorToHex(color) {
+    return "#" + _componentToHex(color[0]) + _componentToHex(color[1]) + _componentToHex(color[2]);
+}
+exports.ColorToHex = ColorToHex;
+function hexToColor(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) {
+        throw new Error(`it is not hex color`);
+    }
+    return [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)];
+}
+exports.hexToColor = hexToColor;
+exports.Cookies = {
+    set: function (b, c, a) {
+        b = [encodeURIComponent(b) + "=" + encodeURIComponent(c)];
+        a && ("expiry" in a && ("number" == typeof a.expiry && (a.expiry = new Date(1E3 * a.expiry + +new Date)), b.push("expires=" + a.expiry.toGMTString())), "domain" in a && b.push("domain=" + a.domain), "path" in a && b.push("path=" + a.path), "secure" in a && a.secure && b.push("secure"));
+        document.cookie = b.join("; ");
+    },
+    get: function (b) {
+        for (var a = [], e = document.cookie.split(/; */), d = 0; d < e.length; d++) {
+            var f = e[d].split("=");
+            f[0] == encodeURIComponent(b) && a.push(decodeURIComponent(f[1].replace(/\+/g, "%20")));
+        }
+        return a[0];
+    },
+    clear: function (b, c) { c || (c = {}); c.expiry = -86400; this.set(b, "", c); }
+};
+
+
+/***/ }),
+
 /***/ "./src/stubit/const.ts":
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -810,6 +1067,251 @@ exports.BuiltinColor = {
 
 /***/ }),
 
+/***/ "./src/stubit/image/image.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const common_1 = __webpack_require__("./src/stubit/common.ts");
+class StuduinoBitImage {
+    constructor(param0, param1, buffer, color = [31, 0, 0]) {
+        if (typeof param0 === 'string') {
+            if (typeof param1 === 'number') {
+                throw new Error(`Invalid format of color`);
+            }
+            if (!param1) {
+                param1 = StuduinoBitImage.defaultColor;
+            }
+            this._color = param1;
+            this._pixels = this.pixelsFrom(param0, param1);
+        }
+        else {
+            if (0 < param0 && param0 <= 5 && typeof param1 == 'number' && 0 < param1 && param0 <= 5) {
+                this._color = color;
+                this._pixels = this.pixelsFromBuffer(param0, param1, buffer, color);
+            }
+            else {
+                throw new Error(`Invalid Format`);
+            }
+        }
+    }
+    pixelsFrom(str, color) {
+        const arrays = [];
+        const rowBuf = str.split(':');
+        for (const rowString of rowBuf) {
+            if (rowString.length == 0)
+                continue;
+            const row = [];
+            for (let index = 0; index < rowString.length; index++) {
+                if (rowString.charAt(index) === '0') {
+                    row.push([0, 0, 0]);
+                }
+                else {
+                    row.push(color);
+                }
+            }
+            arrays.push(row);
+        }
+        return arrays;
+    }
+    pixelsFromBuffer(w, h, buffer, color) {
+        const arrays = [];
+        if (buffer) {
+            if (buffer.length != w * h) {
+                throw new Error(`buffer size does not match to w*h`);
+            }
+            for (let y = 0; y < h; y++) {
+                let row = [];
+                for (let x = 0; x < w; x++) {
+                    row.push(buffer[y * w + x] ? color : [0, 0, 0]);
+                }
+                arrays.push(row);
+            }
+        }
+        else {
+            for (let y = 0; y < h; y++) {
+                let row = [];
+                for (let x = 0; x < w; x++) {
+                    row.push(color); /* [0, 0, 0]？ */
+                }
+                arrays.push(row);
+            }
+        }
+        return arrays;
+    }
+    toPixels() {
+        const pixels = [];
+        for (const row of this._pixels) {
+            for (const one of row) {
+                pixels.push(one);
+            }
+        }
+        return pixels;
+    }
+    width() {
+        return this._pixels[0].length;
+    }
+    height() {
+        return this._pixels.length;
+    }
+    setPixel(x, y, value) {
+        if (x < 0 || x >= this.width() || y < 0 || y >= this.height()) {
+            throw new Error(`It exceed image size`);
+        }
+        this.setPixelColor(x, y, (value) ? this._color : [0, 0, 0]);
+    }
+    setPixelColor(x, y, color) {
+        if (x < 0 || x >= this.width() || y < 0 || y >= this.height()) {
+            throw new Error(`It exceed image size`);
+        }
+        this._pixels[y][x] = color;
+    }
+    getPixel(x, y) {
+        if (x < 0 || x >= this.width() || y < 0 || y >= this.height()) {
+            throw new Error(`It exceed image size`);
+        }
+        return this._pixels[y][x][0] + this._pixels[y][x][1] + this._pixels[y][x][2] !== 0 ? 1 : 0;
+    }
+    getPixelColor(x, y, hex = false) {
+        if (x < 0 || x >= this.width() || y < 0 || y >= this.height()) {
+            throw new Error(`It exceed image size`);
+        }
+        const pixel = this._pixels[y][x];
+        if (hex) {
+            return common_1.ColorToHex(pixel);
+        }
+        return this._pixels[y][x];
+    }
+    setBaseColor(param0, param1 = 0, param2 = 0) {
+        let color = [0, 0, 0];
+        if (typeof param0 === "string") {
+            color = common_1.hexToColor(param0);
+        }
+        else if (typeof param0 === "number") {
+            color = [param0, param1, param2];
+        }
+        else {
+            color = param0;
+        }
+        this._color = color;
+    }
+    shiftLeft(shift) {
+        for (let i = 0; i < shift; i++) {
+            for (const row of this._pixels) {
+                for (let index = 0; index < row.length - 1; index++) {
+                    row[index] = row[index + 1];
+                }
+                row[row.length - 1] = [0, 0, 0];
+            }
+        }
+    }
+    shiftRight(shift) {
+        for (let i = 0; i < shift; i++) {
+            for (const row of this._pixels) {
+                for (let index = row.length - 1; index > 0; index--) {
+                    row[index] = row[index - 1];
+                }
+                row[0] = [0, 0, 0];
+            }
+        }
+    }
+    shiftUp(shift) {
+        for (let count = 0; count < shift; count++) {
+            let row = [];
+            for (let i = 0; i < this.width(); i++) {
+                row.push([0, 0, 0]);
+            }
+            this._pixels.splice(0, 1);
+            this._pixels.push(row);
+        }
+    }
+    shiftDown(shift) {
+        for (let count = 0; count < shift; count++) {
+            let row = [];
+            for (let i = 0; i < this.width(); i++) {
+                row.push([0, 0, 0]);
+            }
+            this._pixels.unshift(row);
+            this._pixels.splice(this._pixels.length - 1, 1);
+        }
+    }
+    crop(src_x, src_y, w, h) {
+        if (src_x < 0 || src_x + w > this.width() || src_y < 0 || src_y + h > this.height() || w == 0 || h == 0) {
+            throw new Error(`Invalid crop`);
+        }
+        const buf = [];
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                buf.push(this.getPixel(src_x + x, src_y + y));
+            }
+        }
+        return new StuduinoBitImage(w, h, buf, this._color);
+    }
+    copy() {
+        return this.crop(0, 0, this.width(), this.height());
+    }
+    invert() {
+        for (let y = 0; y < this.height(); y++) {
+            for (let x = 0; x < this.width(); x++) {
+                this.setPixel(x, y, this.getPixel(x, y) ? 0 : 1);
+            }
+        }
+    }
+    fill(value) {
+        if (value < 0 || 9 < value) {
+            throw new Error(`value must be within 0 to 9`);
+        }
+        for (let y = 0; y < this.height(); y++) {
+            for (let x = 0; x < this.width(); x++) {
+                // 変換方法が不明
+            }
+        }
+        throw new Error('WIP');
+    }
+    paste(src, x, y) {
+        for (let indexy = 0; indexy < src.height() && (indexy + y) < this.height(); indexy++) {
+            for (let indexx = 0; indexx < src.width() && (indexx + x) < this.width(); indexx++) {
+                this.setPixelColor((indexx + x), (indexy + y), src.getPixelColor(indexx, indexy));
+            }
+        }
+    }
+    blit(src, src_x, src_y, w, h, xdest = 0, ydest = 0) {
+        const cropped = src.crop(src_x, src_y, w, h);
+        this.paste(cropped, xdest, ydest);
+    }
+    repr() {
+        let result = "";
+        for (let y = 0; y < this.height(); y++) {
+            for (let x = 0; x < this.width(); x++) {
+                result += (this.getPixel(x, y)) ? '1' : '0';
+            }
+            result += ':';
+        }
+        return result;
+    }
+    str() {
+        let result = "";
+        for (let y = 0; y < this.height(); y++) {
+            for (let x = 0; x < this.width(); x++) {
+                result += (this.getPixel(x, y)) ? '1' : '0';
+            }
+            if (y + 1 == this.height()) {
+                result += ':';
+            }
+            else {
+                result += ':\n';
+            }
+        }
+        return result;
+    }
+}
+StuduinoBitImage.defaultColor = [31, 0, 0];
+exports.StuduinoBitImage = StuduinoBitImage;
+
+
+/***/ }),
+
 /***/ "./src/stubit/index.ts":
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -830,12 +1332,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const obniz_1 = __importDefault(__webpack_require__("./src/webpack-replace/obniz.js"));
 // parts
 const i2c_1 = __webpack_require__("./src/stubit/bus/i2c.ts");
+const image_1 = __webpack_require__("./src/stubit/image/image.ts");
 const bzr_1 = __webpack_require__("./src/stubit/output/bzr.ts");
 const dsply_1 = __webpack_require__("./src/stubit/output/dsply.ts");
 const led_1 = __webpack_require__("./src/stubit/output/led.ts");
 const accelerometer_1 = __webpack_require__("./src/stubit/sensor/accelerometer.ts");
 const button_1 = __webpack_require__("./src/stubit/sensor/button.ts");
 const gyro_1 = __webpack_require__("./src/stubit/sensor/gyro.ts");
+const compass_1 = __webpack_require__("./src/stubit/sensor/compass.ts");
 const icm20948_1 = __webpack_require__("./src/stubit/sensor/icm20948.ts");
 const light_1 = __webpack_require__("./src/stubit/sensor/light.ts");
 const temperature_1 = __webpack_require__("./src/stubit/sensor/temperature.ts");
@@ -873,6 +1377,7 @@ class StuduinoBit {
             yield this.icm20948.initWait();
             this.accelerometer = new accelerometer_1.StuduinoBitAccelerometer(this.icm20948);
             this.gyro = new gyro_1.StuduinoBitGyro(this.icm20948);
+            this.compass = new compass_1.StuduinoBitCompass(this, this.icm20948);
             this.led = new led_1.StuduinoBitLed(this, { anode: 14 });
             this.button_a = new button_1.StuduinoBitButton(this, { signal: 15 });
             this.button_b = new button_1.StuduinoBitButton(this, { signal: 27 });
@@ -914,6 +1419,7 @@ class StuduinoBit {
         this.icm20948 = undefined;
         this.accelerometer = undefined;
         this.gyro = undefined;
+        this.compass = undefined;
         this.p0 = undefined;
         this.p1 = undefined;
         this.p2 = undefined;
@@ -935,6 +1441,8 @@ class StuduinoBit {
         this.p20 = undefined;
     }
 }
+/* Classes */
+StuduinoBit.Image = image_1.StuduinoBitImage;
 exports.StuduinoBit = StuduinoBit;
 
 
@@ -1055,11 +1563,25 @@ exports.StuduinoBitBuzzer = StuduinoBitBuzzer;
 
 "use strict";
 
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const common_1 = __webpack_require__("./src/stubit/common.ts");
 const const_1 = __webpack_require__("./src/stubit/const.ts");
+const image_1 = __webpack_require__("./src/stubit/image/image.ts");
 class StuduinoBitDisplay {
     constructor(studioBit, options) {
+        this._paintColor = image_1.StuduinoBitImage.defaultColor;
         this._enable = false;
+        this._canvas = null;
+        this.width = 5;
+        this.height = 5;
         this._studioBit = studioBit;
         this._enablePin = studioBit.obniz.io2;
         this.off();
@@ -1069,11 +1591,46 @@ class StuduinoBitDisplay {
             this._pixcels.push(const_1.BuiltinColor.CLEAR);
         }
         // this.onWait();
+        this._preparedCanvas();
+    }
+    _preparedCanvas() {
+        if (this._canvas) {
+            return this._canvas;
+        }
+        const isNode = typeof window === 'undefined';
+        if (isNode) {
+        }
+        else {
+            const identifier = 'obnizcanvas-';
+            let canvas = document.getElementById(identifier);
+            if (!canvas) {
+                canvas = document.createElement('canvas');
+                canvas.setAttribute('id', identifier);
+                canvas.style.visibility = 'hidden';
+                canvas.width = this.width;
+                canvas.height = this.height;
+                canvas.style['-webkit-font-smoothing'] = 'none';
+                let body = document.getElementsByTagName('body')[0];
+                body.appendChild(canvas);
+            }
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, this.width, this.height);
+            ctx.fillStyle = '#FFF';
+            ctx.strokeStyle = '#FFF';
+            ctx.font = `7px sans-serif`;
+            this._canvas = canvas;
+        }
+        return;
+    }
+    _ctx() {
+        this._preparedCanvas();
+        return this._canvas.getContext('2d');
     }
     getPixel(x, y) {
         return this._pixcels[this._getIndex(x, y)];
     }
-    setPixcel(x, y, color) {
+    setPixel(x, y, color) {
         let c;
         if (typeof color === "string") {
             c = [0, 0, 0];
@@ -1097,13 +1654,107 @@ class StuduinoBitDisplay {
         this._enable = false;
         this._enablePin.output(false);
     }
-    show(iterable, delay = 400, wait = true, loop = false, clear = false, color = null) {
-        // TODO
-        throw new Error("TODO");
+    draw(ctx) {
+        let width = this.width;
+        let height = this.height;
+        //1pxずつデータ通信をしないために一度offにする
+        this.off();
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+            const index = Math.floor(i / 4);
+            const line = Math.floor(index / width);
+            const col = Math.floor(index - line * width);
+            this.setPixel(col, line, [data[i], data[i + 1], data[i + 2]]);
+        }
+        this.on();
     }
-    scroll(str, delay = 150, wait = true, loop = false, monospace = false, color = null) {
-        // TODO
-        throw new Error("TODO");
+    showWait(iterable, delay = 400, wait = true, loop = false, clear = false, color = null) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this._paintColor = color || image_1.StuduinoBitImage.defaultColor;
+            while (true) {
+                for (const item of iterable) {
+                    if (item instanceof image_1.StuduinoBitImage) {
+                        this.showImage(item);
+                    }
+                    else if (typeof item === 'string') {
+                        this.showText(item);
+                    }
+                    else if (typeof item === 'number') {
+                        this.showNumber(item);
+                    }
+                    else {
+                        throw new Error(`It can't be shown`);
+                    }
+                    if (wait) {
+                        yield this._studioBit.wait(delay);
+                    }
+                    else {
+                        if (loop) {
+                            throw new Error(`You can't loop with no wait`);
+                        }
+                        this._studioBit.wait(delay);
+                    }
+                }
+                if (!loop) {
+                    break;
+                }
+            }
+            if (clear) {
+                this.clear();
+            }
+        });
+    }
+    scrollWait(text, delay = 150, wait = true, loop = false, monospace = false, color = null) {
+        return __awaiter(this, void 0, void 0, function* () {
+            this._paintColor = color || image_1.StuduinoBitImage.defaultColor;
+            const ctx = this._ctx();
+            var metrics = ctx.measureText(text);
+            for (let i = 0; i < metrics.width; i++) {
+                while (true) {
+                    this.showText(text, -i, monospace);
+                    if (wait) {
+                        yield this._studioBit.wait(delay);
+                    }
+                    else {
+                        if (loop) {
+                            throw new Error(`You can't loop with no wait`);
+                        }
+                        this._studioBit.wait(delay);
+                    }
+                    if (!loop) {
+                        break;
+                    }
+                }
+            }
+        });
+    }
+    showImage(image) {
+        this.off();
+        //const color: Color = this._paintColor || Image.defaultColor;
+        for (let y = 0; y < image.height(); y++) {
+            for (let x = 0; x < image.width(); x++) {
+                // const value = image.getPixel(x, y);
+                // this.setPixel(x, y, value ? color : [0, 0, 0]);
+                this.setPixel(x, y, image.getPixelColor(x, y));
+            }
+        }
+        this.on();
+    }
+    showText(text, x = 0, monospace = false) {
+        const ctx = this._ctx();
+        const color = this._paintColor;
+        const hex = common_1.ColorToHex(color);
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, this.width, this.height);
+        ctx.font = monospace ? `7px monospace` : `7px sans-serif`;
+        ctx.fillStyle = hex;
+        ctx.fillText(text, x, 5);
+        this.draw(ctx);
+        this._update();
+    }
+    showNumber(number) {
+        this.showText('' + number);
     }
     clear() {
         this._pixcels = [];
@@ -1264,11 +1915,19 @@ class StuduinoBitAK09916 extends icmRegisterRw_1.ICMRegisterRW {
     magnetic() {
         return __awaiter(this, void 0, void 0, function* () {
             // todo 再起動して計測してる
-            this.registerCharWait(this._CNTL2, this._MODE_POWER_DOWN);
-            this.registerCharWait(this._CNTL2, this.MODE_CONTINOUS_MEASURE_1);
-            const x = (yield this.registerShortWait(this._HXL, null, [0, 0], "l"));
-            const y = (yield this.registerShortWait(this._HYL, null, [0, 0], "l"));
-            const z = (yield this.registerShortWait(this._HZL, null, [0, 0], "l"));
+            //this.registerCharWait(this._CNTL2, this._MODE_POWER_DOWN);
+            //this.registerCharWait(this._CNTL2, this.MODE_CONTINOUS_MEASURE_1);
+            // 0111 1111 1111 0000 4912 uT
+            // 1111 1111 1111 1111 -1 uT
+            // 1000 0000 0001 0000 -4912 uT
+            // data[0]下位ビット data[1] 上位ビット
+            let x = (yield this.registerShortWait(this._HXL, null, [0, 0], "l"));
+            let y = (yield this.registerShortWait(this._HYL, null, [0, 0], "l"));
+            let z = (yield this.registerShortWait(this._HZL, null, [0, 0], "l"));
+            this.registerCharWait(this._ST2);
+            x *= this.so;
+            y *= this.so;
+            z *= this.so;
             const xyz = [
                 (x - this.offset[0]) * this.scale[0],
                 (y - this.offset[1]) * this.scale[1],
@@ -1343,6 +2002,7 @@ class StuduinoBitButton {
                 this._alreadyPressed = true;
                 this._count++;
             }
+            else { }
         };
     }
     isPressedWait() {
@@ -1360,6 +2020,182 @@ class StuduinoBitButton {
     }
 }
 exports.StuduinoBitButton = StuduinoBitButton;
+
+
+/***/ }),
+
+/***/ "./src/stubit/sensor/compass.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const common_1 = __webpack_require__("./src/stubit/common.ts");
+class StuduinoBitCompass {
+    constructor(studuinoBit, icm20948, fs = "2g", sf = "ms2") {
+        this.calibrated = false;
+        this.offset = [0, 0, 0];
+        this.scale = [1, 1, 1];
+        this.OFFSET_COOKIE_KEY = 'STUDUINO_MAGNETIC_OFFSET';
+        this.STUDUINO_MAGNETIC_SCALE = 'STUDUINO_MAGNETIC_SCALE';
+        this.studuinoBit = studuinoBit;
+        this._icm20948 = icm20948;
+        const offset = common_1.Cookies.get(this.OFFSET_COOKIE_KEY);
+        const scale = common_1.Cookies.get(this.STUDUINO_MAGNETIC_SCALE);
+        if (offset && scale) {
+            try {
+                const savedOffset = JSON.parse(offset);
+                const savedScale = JSON.parse(scale);
+                this.offset = savedOffset;
+                this.scale = savedScale;
+                this.calibrated = true;
+            }
+            catch (e) {
+            }
+        }
+    }
+    getXWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getValuesWait())[0];
+        });
+    }
+    getYWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getValuesWait())[1];
+        });
+    }
+    getZWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return (yield this.getValuesWait())[2];
+        });
+    }
+    getValuesWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const mag = yield this._icm20948.magneticWait();
+            if (mag.length !== 3) {
+                throw new Error('Invalid format of magnetic');
+            }
+            let ret = [0, 0, 0];
+            for (let i = 0; i < mag.length; i++) {
+                ret[i] = (mag[i] - this.offset[i]) * this.scale[i];
+            }
+            return ret;
+        });
+    }
+    calibrateWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // const ret = await this._icm20948.calibrateWait(); // want to use display
+            this.offset = [0, 0, 0];
+            this.scale = [1, 1, 1];
+            let reading = yield this._icm20948.magneticWait();
+            let minx = reading[0];
+            let maxx = reading[0];
+            let miny = reading[1];
+            let maxy = reading[1];
+            let minz = reading[2];
+            let maxz = reading[2];
+            const display = this.studuinoBit.display;
+            display.on();
+            display.clear();
+            let count = 0;
+            let x = 0;
+            let y = 0;
+            let z = 0;
+            while (count < 16) {
+                if (display.getPixel(0, 0) === [0, 0, 10]) {
+                    display.setPixel(x, y, [0, 0, 0]);
+                }
+                display.off();
+                yield this.studuinoBit.wait(10);
+                const [ax, ay, az] = yield this.studuinoBit.accelerometer.getValuesWait();
+                x = (ax + 8) / 4;
+                y = (ay + 8) / 4;
+                x = Math.ceil(Math.min(Math.max(x, 0), 4));
+                y = Math.ceil(Math.min(Math.max(y, 0), 4));
+                if (x == 0 || x == 4 || y == 0 || y == 4) {
+                    if (display.getPixel(x, y)[0] + display.getPixel(x, y)[1] + display.getPixel(x, y)[2] === 0) {
+                        display.setPixel(x, y, [0x0a, 0, 0x0a]);
+                        reading = yield this._icm20948.magneticWait();
+                        minx = Math.min(minx, reading[0]);
+                        maxx = Math.max(maxx, reading[0]);
+                        miny = Math.min(miny, reading[1]);
+                        maxy = Math.max(maxy, reading[1]);
+                        minz = Math.min(minz, reading[2]);
+                        maxz = Math.max(maxz, reading[2]);
+                        display.setPixel(x, y, [0x0a, 0, 0]);
+                        count++;
+                    }
+                }
+                else {
+                    display.setPixel(x, y, [0, 0, 0x0a]);
+                }
+                display.on();
+                yield this.studuinoBit.wait(100);
+            }
+            // Hard iron correction
+            const offset_x = (maxx + minx) / 2;
+            const offset_y = (maxy + miny) / 2;
+            const offset_z = (maxz + minz) / 2;
+            this.offset = [offset_x, offset_y, offset_z];
+            // Soft iron correction
+            const avg_delta_x = (maxx - minx) / 2;
+            const avg_delta_y = (maxy - miny) / 2;
+            const avg_delta_z = (maxz - minz) / 2;
+            const avg_delta = (avg_delta_x + avg_delta_y + avg_delta_z) / 3;
+            const scale_x = avg_delta / avg_delta_x;
+            const scale_y = avg_delta / avg_delta_y;
+            const scale_z = avg_delta / avg_delta_z;
+            this.scale = [scale_x, scale_y, scale_z];
+            common_1.Cookies.set(this.OFFSET_COOKIE_KEY, JSON.stringify(this.offset));
+            common_1.Cookies.set(this.STUDUINO_MAGNETIC_SCALE, JSON.stringify(this.scale));
+            this.calibrated = true;
+            display.clear();
+            display.off();
+            return [this.offset, this.scale];
+        });
+    }
+    isCalibrated() {
+        return this.calibrated;
+    }
+    clearCalibration() {
+        this.offset = [0, 0, 0];
+        this.scale = [1, 1, 1];
+        common_1.Cookies.clear(this.OFFSET_COOKIE_KEY);
+        common_1.Cookies.clear(this.STUDUINO_MAGNETIC_SCALE);
+    }
+    headingWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!this.calibrated) {
+                yield this.calibrateWait();
+            }
+            const [ax, ay, az] = yield this.studuinoBit.accelerometer.getValuesWait();
+            let [mx, my, mz] = yield this.getValuesWait();
+            my *= -1;
+            mz *= -1;
+            const phi = Math.atan(ay / ax);
+            const psi = Math.atan(-1 * ax / (ay * Math.sin(phi) + az * Math.cos(phi)));
+            const theta = Math.atan((mz * Math.sin(phi) - my * Math.cos(phi)) / (mx * Math.cos(psi) + my * Math.sin(psi) * Math.sin(phi) + mz * Math.sin(psi) * Math.cos(phi)));
+            const deg = theta * 180 / Math.PI;
+            let offset;
+            if (mx < 0) {
+                offset = -90;
+            }
+            else {
+                offset = +90;
+            }
+            return (deg + offset) % 360;
+        });
+    }
+}
+exports.StuduinoBitCompass = StuduinoBitCompass;
 
 
 /***/ }),
@@ -1558,6 +2394,11 @@ class StuduinoBitICM20948 extends icmRegisterRw_1.ICMRegisterRW {
     magneticWait() {
         return __awaiter(this, void 0, void 0, function* () {
             return this._ak09916.magnetic();
+        });
+    }
+    calibrateWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this._ak09916.calibrateWait();
         });
     }
     whoamiWait() {
@@ -1782,6 +2623,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 class StuduinoBitDigitalPinMixin {
     constructor(studuinoBit, pin) {
+        this.pwm = null;
         this.pin = pin;
         this.studuinoBit = studuinoBit;
     }
@@ -1793,17 +2635,31 @@ class StuduinoBitDigitalPinMixin {
         // @ts-ignore
         return this.studuinoBit.obniz.getIO(this.pin).inputWait();
     }
+    preparedPwm() {
+        if (!this.pwm) {
+            this.pwm = this.studuinoBit.obniz.getFreePwm();
+            this.pwm.start({ io: this.pin });
+        }
+        return this.pwm;
+    }
     writeAnalog(value) {
-        // todo
+        // 0 to 1023
+        const pwm = this.preparedPwm();
+        pwm.duty(value / 1023 * 100);
     }
-    setAnalogPeriod() {
-        // todo
+    setAnalogPeriod(period) {
+        // msec
+        const pwm = this.preparedPwm();
+        pwm.pulse(period);
     }
-    setAnalogPeriodMicroseconds() {
-        // todo
+    setAnalogPeriodMicroseconds(period) {
+        // usec
+        const pwm = this.preparedPwm();
+        pwm.pulse(period * 1000);
     }
-    setAnalogHz() {
-        // todo
+    setAnalogHz(hz) {
+        const pwm = this.preparedPwm();
+        pwm.freq(hz);
     }
 }
 class StuduinoBitAnalogPinMixin {
@@ -1837,6 +2693,7 @@ exports.StuduinoBitAnalogPin = StuduinoBitAnalogPin;
 // @ts-ignore
 class StuduinoBitAnalogDitialPin {
     constructor(studuinoBit, pin) {
+        this.pwm = null;
         this.pin = pin;
         this.studuinoBit = studuinoBit;
     }
@@ -1848,25 +2705,35 @@ class StuduinoBitAnalogDitialPin {
         // will replace by applyMixins
         throw new Error("abstcact function");
     }
-    writeAnalog() {
-        // will replace by applyMixins
-        throw new Error("abstcact function");
-    }
     writeDigital(value) {
         // will replace by applyMixins
         throw new Error("abstcact function");
     }
-    setAnalogPeriod() {
-        // will replace by applyMixins
-        throw new Error("abstcact function");
+    preparedPwm() {
+        if (!this.pwm) {
+            this.pwm = this.studuinoBit.obniz.getFreePwm();
+            this.pwm.start({ io: this.pin });
+        }
+        return this.pwm;
     }
-    setAnalogPeriodMicroseconds() {
-        // will replace by applyMixins
-        throw new Error("abstcact function");
+    writeAnalog(value) {
+        // 0 to 1023
+        const pwm = this.preparedPwm();
+        pwm.duty(value / 1023 * 100);
     }
-    setAnalogHz() {
-        // will replace by applyMixins
-        throw new Error("abstcact function");
+    setAnalogPeriod(period) {
+        // msec
+        const pwm = this.preparedPwm();
+        pwm.pulse(period);
+    }
+    setAnalogPeriodMicroseconds(period) {
+        // usec
+        const pwm = this.preparedPwm();
+        pwm.pulse(period * 1000);
+    }
+    setAnalogHz(hz) {
+        const pwm = this.preparedPwm();
+        pwm.freq(hz);
     }
 }
 exports.StuduinoBitAnalogDitialPin = StuduinoBitAnalogDitialPin;
