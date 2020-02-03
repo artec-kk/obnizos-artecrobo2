@@ -104,10 +104,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const index_1 = __webpack_require__("./src/stubit/index.ts");
 const bzr_1 = __webpack_require__("./src/atcrobo/parts/bzr.ts");
 const acc_1 = __webpack_require__("./src/atcrobo/parts/acc.ts");
-const irPhtoRefrector_1 = __webpack_require__("./src/atcrobo/parts/irPhtoRefrector.ts");
+const irPhotoReflector_1 = __webpack_require__("./src/atcrobo/parts/irPhotoReflector.ts");
 const led_1 = __webpack_require__("./src/atcrobo/parts/led.ts");
 const motor_1 = __webpack_require__("./src/atcrobo/parts/motor.ts");
 const servomotor_1 = __webpack_require__("./src/atcrobo/parts/servomotor.ts");
+const light_1 = __webpack_require__("./src/atcrobo/parts/light.ts");
 const sound_1 = __webpack_require__("./src/atcrobo/parts/sound.ts");
 const temperature_1 = __webpack_require__("./src/atcrobo/parts/temperature.ts");
 const touch_1 = __webpack_require__("./src/atcrobo/parts/touch.ts");
@@ -197,9 +198,10 @@ ArtecRobo.Motor = motor_1.ArtecRoboMotor;
 ArtecRobo.Buzzer = bzr_1.ArtecRoboBuzzer;
 ArtecRobo.Accelerometer = acc_1.ArtecRoboAccelerometer;
 ArtecRobo.ServoMotor = servomotor_1.ArtecRoboServoMotor;
-ArtecRobo.IrPhotoRefrector = irPhtoRefrector_1.ArtecRoboIrPhotoRefrector;
+ArtecRobo.IrPhotoReflector = irPhotoReflector_1.ArtecRoboIrPhotoReflector;
 ArtecRobo.Temperature = temperature_1.ArtecRoboTemperature;
 ArtecRobo.SoundSensor = sound_1.ArtecRoboSoundSensor;
+ArtecRobo.LightSensor = light_1.ArtecRoboLightSensor;
 exports.ArtecRobo = ArtecRobo;
 
 
@@ -435,7 +437,7 @@ exports.ArtecRoboInputParts = ArtecRoboInputParts;
 
 /***/ }),
 
-/***/ "./src/atcrobo/parts/irPhtoRefrector.ts":
+/***/ "./src/atcrobo/parts/irPhotoReflector.ts":
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -450,14 +452,14 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const inputParts_1 = __webpack_require__("./src/atcrobo/parts/inputParts.ts");
-class ArtecRoboIrPhotoRefrector extends inputParts_1.ArtecRoboInputParts {
+class ArtecRoboIrPhotoReflector extends inputParts_1.ArtecRoboInputParts {
     getValueWait() {
         return __awaiter(this, void 0, void 0, function* () {
             return this._inPin.terminalPin.readAnalogWait();
         });
     }
 }
-exports.ArtecRoboIrPhotoRefrector = ArtecRoboIrPhotoRefrector;
+exports.ArtecRoboIrPhotoReflector = ArtecRoboIrPhotoReflector;
 
 
 /***/ }),
@@ -483,6 +485,33 @@ class ArtecRoboLed extends outputParts_1.ArtecRoboOutputParts {
     }
 }
 exports.ArtecRoboLed = ArtecRoboLed;
+
+
+/***/ }),
+
+/***/ "./src/atcrobo/parts/light.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const inputParts_1 = __webpack_require__("./src/atcrobo/parts/inputParts.ts");
+class ArtecRoboLightSensor extends inputParts_1.ArtecRoboInputParts {
+    getValueWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this._inPin.terminalPin.readAnalogWait();
+        });
+    }
+}
+exports.ArtecRoboLightSensor = ArtecRoboLightSensor;
 
 
 /***/ }),
@@ -742,9 +771,32 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const inputParts_1 = __webpack_require__("./src/atcrobo/parts/inputParts.ts");
 class ArtecRoboTouchSensor extends inputParts_1.ArtecRoboInputParts {
+    constructor(artecRobo, inPin) {
+        super(artecRobo, inPin);
+        this._artecRobo = artecRobo;
+    }
     getValueWait() {
         return __awaiter(this, void 0, void 0, function* () {
-            return this._inPin.terminalPin.readDigitalWait();
+            if (this._inPin === this._artecRobo.p2) {
+                let bool = yield this._inPin.terminalPin.readAnalogWait();
+                return Math.min(Number(bool), 1);
+            }
+            else {
+                let bool = yield this._inPin.terminalPin.readDigitalWait();
+                return Number(bool);
+            }
+        });
+    }
+    isPressedWait() {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (this._inPin === this._artecRobo.p2) {
+                let bool = yield this._inPin.terminalPin.readAnalogWait();
+                return !bool;
+            }
+            else {
+                let bool = yield this._inPin.terminalPin.readDigitalWait();
+                return !bool;
+            }
         });
     }
 }
@@ -1054,21 +1106,21 @@ exports.Cookies = {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BuiltinColor = {
     BLACK: [0, 0, 0],
-    WHITE: [31, 31, 31],
-    RED: [0xff, 0x00, 0x00],
-    RIME: [0x00, 0xff, 0x00],
-    BLUE: [0x00, 0x00, 0xff],
-    YELLOW: [0xff, 0xff, 0x00],
-    CYAN: [0x00, 0xff, 0xff],
-    MAGENTA: [0xff, 0x00, 0xff],
-    SILVER: [0xc0, 0xc0, 0xc0],
-    GRAY: [0x80, 0x80, 0x80],
-    MAROON: [0x80, 0x00, 0x00],
-    OLIVE: [0x80, 0x80, 0x00],
-    GREEN: [0x00, 0x80, 0x00],
-    PURPLE: [0x80, 0x00, 0x80],
-    TEAL: [0x00, 0x80, 0x80],
-    NAVY: [0x00, 0x00, 0x80],
+    WHITE: [0x1f, 0x1f, 0x1f],
+    RED: [0x1f, 0x00, 0x00],
+    RIME: [0x00, 0x1f, 0x00],
+    BLUE: [0x00, 0x00, 0x1f],
+    YELLOW: [0x1f, 0x1f, 0x00],
+    CYAN: [0x00, 0x1f, 0x1f],
+    MAGENTA: [0x1f, 0x00, 0x1f],
+    SILVER: [0x17, 0x17, 0x17],
+    GRAY: [0x0f, 0x0f, 0x0f],
+    MAROON: [0x0f, 0x00, 0x00],
+    OLIVE: [0x0f, 0x0f, 0x00],
+    GREEN: [0x00, 0x0f, 0x00],
+    PURPLE: [0x0f, 0x00, 0x0f],
+    TEAL: [0x00, 0x0f, 0x0f],
+    NAVY: [0x00, 0x00, 0x0f],
     CLEAR: [0x00, 0x00, 0x00],
 };
 
@@ -1082,6 +1134,7 @@ exports.BuiltinColor = {
 
 Object.defineProperty(exports, "__esModule", { value: true });
 const common_1 = __webpack_require__("./src/stubit/common.ts");
+const imageConst3_1 = __webpack_require__("./src/stubit/image/imageConst3.ts");
 class StuduinoBitImage {
     constructor(param0, param1, buffer, color = [31, 0, 0]) {
         if (typeof param0 === 'string') {
@@ -1270,12 +1323,13 @@ class StuduinoBitImage {
         if (value < 0 || 9 < value) {
             throw new Error(`value must be within 0 to 9`);
         }
+        let v = Math.floor(StuduinoBitImage.PIX_MAXCOLOR_FACTOR * value / 9);
+        let color = [v, v, v];
         for (let y = 0; y < this.height(); y++) {
             for (let x = 0; x < this.width(); x++) {
-                // 変換方法が不明
+                this.setPixelColor(x, y, this.getPixel(x, y) ? color : [0, 0, 0]);
             }
         }
-        throw new Error('WIP');
     }
     paste(src, x, y) {
         for (let indexy = 0; indexy < src.height() && (indexy + y) < this.height(); indexy++) {
@@ -1315,7 +1369,116 @@ class StuduinoBitImage {
     }
 }
 StuduinoBitImage.defaultColor = [31, 0, 0];
+StuduinoBitImage.CHARACTER_MAP = imageConst3_1.CHARACTER_MAP;
+StuduinoBitImage.PIX_MAXCOLOR_FACTOR = 31;
 exports.StuduinoBitImage = StuduinoBitImage;
+
+
+/***/ }),
+
+/***/ "./src/stubit/image/imageConst3.ts":
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.CHARACTER_MAP = {
+    ' ': '00000:00000:00000:00000:00000:',
+    '!': '09000:09000:09000:00000:09000:',
+    '"': '09090:09090:00000:00000:00000:',
+    '#': '09090:99999:09090:99999:09090:',
+    '$': '09990:99009:09990:90099:09990:',
+    '%': '99009:90090:00900:09009:90099:',
+    '&': '09900:90090:09900:90090:09909:',
+    "'": '09000:09000:00000:00000:00000:',
+    '(': '00900:09000:09000:09000:00900:',
+    ')': '09000:00900:00900:00900:09000:',
+    '*': '00000:09090:00900:09090:00000:',
+    '+': '00000:00900:09990:00900:00000:',
+    ',': '00000:00000:00000:00900:09000:',
+    '-': '00000:00000:09990:00000:00000:',
+    '.': '00000:00000:00000:09000:00000:',
+    '/': '00009:00090:00900:09000:90000:',
+    '0': '09900:90090:90090:90090:09900:',
+    '1': '00900:09900:00900:00900:09990:',
+    '2': '99900:00090:09900:90000:99990:',
+    '3': '99990:00090:00900:90090:09900:',
+    '4': '00990:09090:90090:99999:00090:',
+    '5': '99999:90000:99990:00009:99990:',
+    '6': '00090:00900:09990:90009:09990:',
+    '7': '99999:00090:00900:09000:90000:',
+    '8': '09990:90009:09990:90009:09990:',
+    '9': '09990:90009:09990:00900:09000:',
+    ':': '00000:09000:00000:09000:00000:',
+    ';': '00000:00900:00000:00900:09000:',
+    '<': '00090:00900:09000:00900:00090:',
+    '=': '00000:09990:00000:09990:00000:',
+    '>': '09000:00900:00090:00900:09000:',
+    '?': '09990:90009:00990:00000:00900:',
+    '@': '09990:90009:90909:90099:09900:',
+    'A': '09900:90090:99990:90090:90090:',
+    'B': '99900:90090:99900:90090:99900:',
+    'C': '09990:90000:90000:90000:09990:',
+    'D': '99900:90090:90090:90090:99900:',
+    'E': '99990:90000:99900:90000:99990:',
+    'F': '99990:90000:99900:90000:90000:',
+    'G': '09990:90000:90099:90009:09990:',
+    'H': '90090:90090:99990:90090:90090:',
+    'I': '99900:09000:09000:09000:99900:',
+    'J': '99999:00090:00090:90090:09900:',
+    'K': '90090:90900:99000:90900:90090:',
+    'L': '90000:90000:90000:90000:99990:',
+    'M': '90009:99099:90909:90009:90009:',
+    'N': '90009:99009:90909:90099:90009:',
+    'O': '09900:90090:90090:90090:09900:',
+    'P': '99900:90090:99900:90000:90000:',
+    'Q': '09900:90090:90090:09900:00990:',
+    'R': '99900:90090:99900:90090:90009:',
+    'S': '09990:90000:09900:00090:99900:',
+    'T': '99999:00900:00900:00900:00900:',
+    'U': '90090:90090:90090:90090:09900:',
+    'V': '90009:90009:90009:09090:00900:',
+    'W': '90009:90009:90909:99099:90009:',
+    'X': '90090:90090:09900:90090:90090:',
+    'Y': '90009:09090:00900:00900:00900:',
+    'Z': '99990:00900:09000:90000:99990:',
+    '[': '09990:09000:09000:09000:09990:',
+    '\\': '90000:09000:00900:00090:00009:',
+    ']': '09990:00090:00090:00090:09990:',
+    '^': '00900:09090:00000:00000:00000:',
+    '_': '00000:00000:00000:00000:99999:',
+    '`': '09000:00900:00000:00000:00000:',
+    'a': '00000:09990:90090:90090:09999:',
+    'b': '90000:90000:99900:90090:99900:',
+    'c': '00000:09990:90000:90000:09990:',
+    'd': '00090:00090:09990:90090:09990:',
+    'e': '09900:90090:99900:90000:09990:',
+    'f': '00990:09000:99900:09000:09000:',
+    'g': '09990:90090:09990:00090:09900:',
+    'h': '90000:90000:99900:90090:90090:',
+    'i': '09000:00000:09000:09000:09000:',
+    'j': '00090:00000:00090:00090:09900:',
+    'k': '90000:90900:99000:90900:90090:',
+    'l': '09000:09000:09000:09000:00990:',
+    'm': '00000:99099:90909:90009:90009:',
+    'n': '00000:99900:90090:90090:90090:',
+    'o': '00000:09900:90090:90090:09900:',
+    'p': '00000:99900:90090:99900:90000:',
+    'q': '00000:09990:90090:09990:00090:',
+    'r': '00000:09990:90000:90000:90000:',
+    's': '00000:00990:09000:00900:99000:',
+    't': '09000:09000:09990:09000:00999:',
+    'u': '00000:90090:90090:90090:09999:',
+    'v': '00000:90009:90009:09090:00900:',
+    'w': '00000:90009:90009:90909:99099:',
+    'x': '00000:90090:09900:09900:90090:',
+    'y': '00000:90009:09090:00900:99000:',
+    'z': '00000:99990:00900:09000:99990:',
+    '{': '00990:00900:09900:00900:00990:',
+    '|': '09000:09000:09000:09000:09000:',
+    '}': '99000:09000:09900:09000:99000:',
+    '~': '00000:00000:09900:00099:00000:',
+};
 
 
 /***/ }),
@@ -1580,7 +1743,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const common_1 = __webpack_require__("./src/stubit/common.ts");
 const const_1 = __webpack_require__("./src/stubit/const.ts");
 const image_1 = __webpack_require__("./src/stubit/image/image.ts");
 class StuduinoBitDisplay {
@@ -1590,6 +1752,7 @@ class StuduinoBitDisplay {
         this._canvas = null;
         this.width = 5;
         this.height = 5;
+        this.PIX_MAXCOLOR_FACTOR = image_1.StuduinoBitImage.PIX_MAXCOLOR_FACTOR;
         this._studioBit = studioBit;
         this._enablePin = studioBit.obniz.io2;
         this.off();
@@ -1641,13 +1804,27 @@ class StuduinoBitDisplay {
     setPixel(x, y, color) {
         let c;
         if (typeof color === "string") {
-            c = [0, 0, 0];
+            if (const_1.BuiltinColor[color]) {
+                c = const_1.BuiltinColor[color];
+            }
+            else {
+                console.log("Invailed color");
+                c = [0, 0, 0];
+            }
         }
         else if (Array.isArray(color)) {
             c = color;
         }
         else {
             throw new Error("color takes a [R,G,B] or #RGB");
+        }
+        if (y < 0 || x < 0 || y >= this.height || x >= this.width) {
+            throw new Error('index out of bounds');
+        }
+        if (c[0] < 0 || c[0] > this.PIX_MAXCOLOR_FACTOR ||
+            c[1] < 0 || c[1] > this.PIX_MAXCOLOR_FACTOR ||
+            c[2] < 0 || c[2] > this.PIX_MAXCOLOR_FACTOR) {
+            throw new Error(`color factor must be 0-${this.PIX_MAXCOLOR_FACTOR}`);
         }
         this._pixcels[this._getIndex(x, y)] = c;
         this._update();
@@ -1716,23 +1893,33 @@ class StuduinoBitDisplay {
     scrollWait(text, delay = 150, wait = true, loop = false, monospace = false, color = null) {
         return __awaiter(this, void 0, void 0, function* () {
             this._paintColor = color || image_1.StuduinoBitImage.defaultColor;
-            const ctx = this._ctx();
-            var metrics = ctx.measureText(text);
-            for (let i = 0; i < metrics.width; i++) {
-                while (true) {
-                    this.showText(text, -i, monospace);
-                    if (wait) {
-                        yield this._studioBit.wait(delay);
-                    }
-                    else {
-                        if (loop) {
-                            throw new Error(`You can't loop with no wait`);
+            const disp_string = ' ' + text + ' ';
+            while (true) {
+                for (let i = 0; i < text.length; i++) {
+                    const curr = image_1.StuduinoBitImage.CHARACTER_MAP[disp_string[i]] ? image_1.StuduinoBitImage.CHARACTER_MAP[disp_string[i]] : image_1.StuduinoBitImage.CHARACTER_MAP["?"];
+                    const next = image_1.StuduinoBitImage.CHARACTER_MAP[disp_string[i + 1]] ? image_1.StuduinoBitImage.CHARACTER_MAP[disp_string[i + 1]] : image_1.StuduinoBitImage.CHARACTER_MAP["?"];
+                    const currArr = curr.split(":");
+                    const nextArr = next.split(":");
+                    for (let j = 0; j < 5; j++) {
+                        let img = [];
+                        for (let x = 0; x < 5; x++) {
+                            img.push((currArr[x].slice(j)).concat(nextArr[x].slice(0, j)));
                         }
-                        this._studioBit.wait(delay);
+                        const image = new image_1.StuduinoBitImage(img.join(":"), this._paintColor, null);
+                        this.showImage(image);
+                        if (wait) {
+                            yield this._studioBit.wait(delay);
+                        }
+                        else {
+                            if (loop) {
+                                throw new Error(`You can't loop with no wait`);
+                            }
+                            this._studioBit.wait(delay);
+                        }
                     }
-                    if (!loop) {
-                        break;
-                    }
+                }
+                if (!loop) {
+                    break;
                 }
             }
         });
@@ -1750,16 +1937,9 @@ class StuduinoBitDisplay {
         this.on();
     }
     showText(text, x = 0, monospace = false) {
-        const ctx = this._ctx();
-        const color = this._paintColor;
-        const hex = common_1.ColorToHex(color);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, this.width, this.height);
-        ctx.font = monospace ? `7px monospace` : `7px sans-serif`;
-        ctx.fillStyle = hex;
-        ctx.fillText(text, x, 5);
-        this.draw(ctx);
-        this._update();
+        let curr = image_1.StuduinoBitImage.CHARACTER_MAP[text] ? image_1.StuduinoBitImage.CHARACTER_MAP[text] : image_1.StuduinoBitImage.CHARACTER_MAP["?"];
+        let image = new image_1.StuduinoBitImage(curr, this._paintColor, null);
+        this.showImage(image);
     }
     showNumber(number) {
         this.showText('' + number);
@@ -2126,8 +2306,8 @@ class StuduinoBitCompass {
                 const [ax, ay, az] = yield this.studuinoBit.accelerometer.getValuesWait();
                 x = (ax + 8) / 4;
                 y = (ay + 8) / 4;
-                x = Math.ceil(Math.min(Math.max(x, 0), 4));
-                y = Math.ceil(Math.min(Math.max(y, 0), 4));
+                x = Math.round(Math.min(Math.max(x, 0), 4));
+                y = Math.round(Math.min(Math.max(y, 0), 4));
                 if (x == 0 || x == 4 || y == 0 || y == 4) {
                     if (display.getPixel(x, y)[0] + display.getPixel(x, y)[1] + display.getPixel(x, y)[2] === 0) {
                         display.setPixel(x, y, [0x0a, 0, 0x0a]);
@@ -2199,7 +2379,7 @@ class StuduinoBitCompass {
             else {
                 offset = +90;
             }
-            return (deg + offset) % 360 + 180;
+            return (deg + offset + 360) % 360;
         });
     }
 }

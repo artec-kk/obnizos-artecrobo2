@@ -16,6 +16,8 @@ export class StuduinoBitDisplay {
     protected width = 5;
     protected height = 5;
 
+    protected PIX_MAXCOLOR_FACTOR = Image.PIX_MAXCOLOR_FACTOR;
+    
     constructor(studioBit: StuduinoBit, options: WS2812BOptions) {
         this._studioBit = studioBit;
         this._enablePin = studioBit.obniz.io2;
@@ -76,11 +78,26 @@ export class StuduinoBitDisplay {
 
         let  c: [number, number, number];
         if (typeof color === "string") {
-            c = [0, 0, 0];
+            if (BuiltinColor[color]) {
+                c = BuiltinColor[color]
+            } else {
+                console.log("Invailed color")
+                c = [0, 0, 0];
+            }
         } else if (Array.isArray(color)) {
             c = color;
         } else {
             throw new Error("color takes a [R,G,B] or #RGB");
+        }
+
+        if (y < 0 || x < 0 || y >= this.height || x >= this.width) {
+            throw new Error('index out of bounds')
+        }
+        
+        if (c[0] < 0 || c[0] > this.PIX_MAXCOLOR_FACTOR ||
+            c[1] < 0 || c[1] > this.PIX_MAXCOLOR_FACTOR ||
+            c[2] < 0 || c[2] > this.PIX_MAXCOLOR_FACTOR) {
+            throw new Error(`color factor must be 0-${this.PIX_MAXCOLOR_FACTOR}`)
         }
 
         this._pixcels[this._getIndex(x, y)] = c;
@@ -166,23 +183,33 @@ export class StuduinoBitDisplay {
 
         this._paintColor = color || Image.defaultColor;
 
-        const ctx = this._ctx();
-        var metrics = ctx.measureText(text);
+        const disp_string: string = ' ' + text + ' ';
 
-        for (let i = 0; i < metrics.width; i++) {
-            while (true) {
-                this.showText(text, -i, monospace);
-                if (wait) {
-                    await this._studioBit.wait(delay)
-                } else {
-                    if (loop) {
-                        throw new Error(`You can't loop with no wait`)
+        while (true) {
+            for (let i = 0; i < text.length; i++) {
+                const curr: any = Image.CHARACTER_MAP[disp_string[i]] ? Image.CHARACTER_MAP[disp_string[i]] : Image.CHARACTER_MAP["?"]
+                const next: any = Image.CHARACTER_MAP[disp_string[i+1]] ? Image.CHARACTER_MAP[disp_string[i+1]] : Image.CHARACTER_MAP["?"]
+                const currArr: any = curr.split(":")
+                const nextArr: any = next.split(":")
+                for (let j = 0; j < 5; j++) {
+                    let img: any = []
+                    for (let x = 0; x < 5; x++) {
+                        img.push((currArr[x].slice(j)).concat(nextArr[x].slice(0, j)))
                     }
-                    this._studioBit.wait(delay)
+                    const image: any = new Image(img.join(":"), this._paintColor, null)
+                    this.showImage(image)
+                    if (wait) {
+                        await this._studioBit.wait(delay)
+                    } else {
+                        if (loop) {
+                            throw new Error(`You can't loop with no wait`)
+                        }
+                        this._studioBit.wait(delay)
+                    }
                 }
-                if (!loop) {
-                    break;
-                }
+            }
+            if (!loop) {
+                break;
             }
         }
     }
@@ -201,17 +228,9 @@ export class StuduinoBitDisplay {
     }
 
     protected showText(text: string, x:number = 0, monospace = false) {
-        const ctx = this._ctx();
-        const color: Color = this._paintColor;
-        const hex = ColorToHex(color);
-        ctx.fillStyle = '#000';
-        ctx.fillRect(0, 0, this.width, this.height);
-        ctx.font = monospace ? `7px monospace` : `7px sans-serif`;
-        ctx.fillStyle = hex;
-        ctx.fillText(text, x, 5);
-
-        this.draw(ctx);
-        this._update();
+        let curr: any = Image.CHARACTER_MAP[text] ? Image.CHARACTER_MAP[text] : Image.CHARACTER_MAP["?"]
+        let image = new Image(curr, this._paintColor, null)
+        this.showImage(image)
     }
 
     protected showNumber(number: number) {

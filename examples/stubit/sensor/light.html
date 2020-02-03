@@ -6,28 +6,24 @@
   <script src="https://obniz.io/js/jquery-3.2.1.min.js"></script>
   <script src="https://unpkg.com/obniz@3.0.0/obniz.js"></script>
   <script src="../../../artec.js"></script>
+
 </head>
 
 <body>
 
   <div id="obniz-debug"></div>
-  <h1>obniz instant HTML</h1>
-  <button id="red">red</button>
-  <button id="green">green</button>
-  <button id="blue">blue</button>
+  Light Value: <span id="light"></span>
 
   <script>
-
     var stubit = new Artec.StuduinoBit("YOUR_STUDUIOBIT_ID");
     stubit.onconnect = async function () {
-      stubit.display.on();
-      await stubit.display.showWait([0, 1, 2], 1000);
 
-      await stubit.display.showWait(['A', 'B', 'C'], 1000, true, false, true, [0, 0, 31]);
-
-      await stubit.display.showWait(['A', 'B', 'C'], 1000, true, false, true, [0, 0, 31]);
+      while(1) {
+        let light_value = await stubit.lightsensor.getValueWait()
+        $("#light").text(light_value)
+        console.log(light_value)
+      }
     }
-
   </script>
 </body>
 
