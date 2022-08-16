@@ -473,7 +473,7 @@ class ArtecRoboColorSensor extends i2cParts_1.ArtecRoboI2CParts {
         this.i2c0 = artecRobo.studuinoBit.obniz.i2c0;
         this.i2c0.start({ mode: "master", sda: 21, scl: 22, clock: 400000 });
     }
-    getValues() {
+    getValuesWait() {
         return __awaiter(this, void 0, void 0, function* () {
             this.i2c0.write(this.__addr, [this.ColorSensorConfig.GET_COLOR_RGB]);
             let readingdata = yield this.i2c0.readWait(this.__addr, 4);
@@ -489,9 +489,9 @@ class ArtecRoboColorSensor extends i2cParts_1.ArtecRoboI2CParts {
             }
         });
     }
-    getColorCode() {
+    getColorCodeWait() {
         return __awaiter(this, void 0, void 0, function* () {
-            yield this.getValues();
+            yield this.getValuesWait();
             yield this.__calcXyCode();
             if (this.red <= this.ColorSensorConfig.LOST_THRESHOLD && this.green <= this.ColorSensorConfig.LOST_THRESHOLD && this.blue <= this.ColorSensorConfig.LOST_THRESHOLD) {
                 return this.ColorSensorConfig.COLOR_UNDEF;
@@ -676,7 +676,7 @@ class ArtecRoboMotor extends motorParts_1.ArtecRoboMotorParts {
         ];
         this.CW = "cw";
         this.CCW = "ccw";
-        this.BREAK = "break";
+        this.BRAKE = "brake";
         this.STOP = "stop";
         if (this._motorPin === artecRobo.m1) {
             this._p = 0;
@@ -694,8 +694,8 @@ class ArtecRoboMotor extends motorParts_1.ArtecRoboMotorParts {
     stop() {
         this._action("stop");
     }
-    break() {
-        this._action("break");
+    brake() {
+        this._action("brake");
     }
     power(power) {
         if (power > 255 || power < 0 || !Number.isInteger(power)) {
@@ -716,16 +716,16 @@ class ArtecRoboMotor extends motorParts_1.ArtecRoboMotorParts {
         else if (motion === "stop") {
             index = 2;
         }
-        else if (motion === "break") {
+        else if (motion === "brake") {
             index = 3;
         }
         else {
-            throw new Error("motion: DCMotor.CW/CCW/STOP/BREAK");
+            throw new Error("motion: DCMotor.CW/CCW/STOP/BRAKE");
         }
         const command = [this._COMMAND[this._p][index]];
         if (this._currentMotion === "cw" && motion === "ccw"
             || this._currentMotion === "ccw" && motion === "cw") {
-            // break
+            // brake
             this._motorPin.i2c.write(this._ADDRESS, [this._COMMAND[this._p][3]]);
             // @ts-ignore
             this._motorPin.i2c.obnizI2c.Obniz.wait(100);
@@ -1706,7 +1706,6 @@ const i2c_1 = __webpack_require__("./src/stubit/bus/i2c.ts");
 const image_1 = __webpack_require__("./src/stubit/image/image.ts");
 const bzr_1 = __webpack_require__("./src/stubit/output/bzr.ts");
 const dsply_1 = __webpack_require__("./src/stubit/output/dsply.ts");
-const led_1 = __webpack_require__("./src/stubit/output/led.ts");
 const accelerometer_1 = __webpack_require__("./src/stubit/sensor/accelerometer.ts");
 const button_1 = __webpack_require__("./src/stubit/sensor/button.ts");
 const gyro_1 = __webpack_require__("./src/stubit/sensor/gyro.ts");
@@ -1749,7 +1748,6 @@ class StuduinoBit {
             this.accelerometer = new accelerometer_1.StuduinoBitAccelerometer(this.icm20948);
             this.gyro = new gyro_1.StuduinoBitGyro(this.icm20948);
             this.compass = new compass_1.StuduinoBitCompass(this, this.icm20948);
-            this.led = new led_1.StuduinoBitLed(this, { anode: 14 });
             this.button_a = new button_1.StuduinoBitButton(this, { signal: 15 });
             this.button_b = new button_1.StuduinoBitButton(this, { signal: 27 });
             this.display = new dsply_1.StuduinoBitDisplay(this, { din: 4 });
@@ -1778,7 +1776,6 @@ class StuduinoBit {
         });
     }
     _unWire() {
-        this.led = undefined;
         this.display = undefined;
         this.button_a = undefined;
         this.button_b = undefined;
@@ -2182,28 +2179,6 @@ class StuduinoBitDisplay {
     }
 }
 exports.StuduinoBitDisplay = StuduinoBitDisplay;
-
-
-/***/ }),
-
-/***/ "./src/stubit/output/led.ts":
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class StuduinoBitLed {
-    constructor(studuinoBit, options) {
-        this._obnizLED = studuinoBit.obniz.wired("LED", options);
-    }
-    on() {
-        this._obnizLED.on();
-    }
-    off() {
-        this._obnizLED.off();
-    }
-}
-exports.StuduinoBitLed = StuduinoBitLed;
 
 
 /***/ }),
@@ -3009,7 +2984,6 @@ exports.StuduinoBitTemperature = StuduinoBitTemperature;
 
 "use strict";
 
-// tslint:disable:max-classes-per-file
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
